@@ -1,0 +1,12 @@
+/target/
+/testsd/
+**/*.rs.bk
+.vscode/
+.idea/
+.fleet/
+*.iml
+.vim/
+.nvim/
+*.swp
+*.swo
+*.patch

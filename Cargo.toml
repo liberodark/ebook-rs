@@ -1,0 +1,57 @@
+[package]
+name = "ebook-rs"
+version = "0.2.0"
+edition = "2024"
+description = "A lightweight OPDS server for ebooks and comics with reading sync"
+license = "GPL-3.0"
+repository = "https://github.com/liberodark/ebook-rs"
+keywords = ["opds", "ebook", "epub", "cbz", "manga", "sync"]
+categories = ["web-programming::http-server"]
+
+[dependencies]
+tokio = { version = "1", features = ["full"] }
+axum = { version = "0.8", features = ["macros"] }
+tower-http = { version = "0.6", features = ["cors", "trace"] }
+clap = { version = "4", features = ["derive", "env"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+quick-xml = { version = "0.37", features = ["serialize"] }
+toml = "0.8"
+rusqlite = { version = "0.32", features = ["bundled"] }
+argon2 = "0.5"
+rand = "0.8"
+base64 = "0.22"
+zip = { version = "2", default-features = false, features = ["deflate"] }
+lopdf = "0.39"
+image = { version = "0.25", default-features = false, features = ["jpeg", "png", "webp"] }
+jxl = "0.3"
+uuid = { version = "1", features = ["v4", "v5"] }
+chrono = { version = "0.4", features = ["serde"] }
+walkdir = "2"
+thiserror = "2"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+parking_lot = "0.12"
+anyhow = "1"
+urlencoding = "2"
+tokio-util = { version = "0.7", features = ["io"] }
+dirs = "6.0"
+flate2 = "1.1"
+tar = "0.4"
+roxmltree = "0.20"
+rayon = "1.11"
+
+[dev-dependencies]
+tokio-test = "0.4"
+tempfile = "3"
+
+[profile.release]
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
+opt-level = 3
+
+[lints.rust]
+unsafe_code = "deny"
+unused_imports = "deny"
