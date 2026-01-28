@@ -17,7 +17,7 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 quick-xml = { version = "0.37", features = ["serialize"] }
 toml = "0.8"
-rusqlite = { version = "0.32", features = ["bundled"] }
+rusqlite = { version = "0.38", features = ["bundled"] }
 argon2 = "0.5"
 rand = "0.9"
 base64 = "0.22"
