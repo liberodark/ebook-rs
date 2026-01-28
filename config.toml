@@ -1,0 +1,38 @@
+[server]
+# Address to bind the server to
+bind = "0.0.0.0:8080"
+# OPDS catalog title
+title = "My Library"
+
+[database]
+# SQLite database path (default: data/library.db)
+# path = "/var/lib/ebook-rs/library.db"
+
+[auth]
+# Registration mode:
+# - "open": anyone can register
+# - "disabled": only admin can create users via CLI
+registration = "open"
+# Session token duration in days
+session_days = 30
+
+[sync]
+# Merge strategy for reading progress:
+# - "latest": most recent update wins
+# - "furthest": furthest reading position wins
+# - "per_device": keep separate progress per device
+merge_strategy = "furthest"
+
+[scan]
+# Library rescan interval in seconds (0 to disable auto-scan)
+interval_seconds = 300
+# Number of parallel workers for metadata extraction
+# Keep low (1-4) for NAS/network storage to avoid saturation
+# Use 1 for sequential processing (Raspberry Pi, slow storage)
+workers = 4
+
+[cache]
+# Directory for cached covers (default: ~/.cache/ebook-rs/covers)
+# covers_dir = "/var/lib/ebook-rs/cache/covers"
+# Thumbnail size in pixels
+thumbnail_size = 200
