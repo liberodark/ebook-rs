@@ -35,7 +35,7 @@ local TIMEOUT_BLOCK = 5
 local TIMEOUT_TOTAL = 15
 local TIMEOUT_DOWNLOAD_BLOCK = 15
 local TIMEOUT_DOWNLOAD_TOTAL = 300
-local PLACEHOLDER_MAX_SIZE = 500 * 1024
+local PLACEHOLDER_MAX_SIZE = 2 * 1024 * 1024
 local PLACEHOLDER_WIDTH = 600
 local PLACEHOLDER_QUALITY = 90
 
@@ -44,6 +44,13 @@ function CloudReader:init()
     self:ensureLibraryDir()
     self.ui.menu:registerToMainMenu(self)
     self:patchReaderUI()
+    
+    -- Patch file chooser for folder hold
+    if not self.ui.document then
+        UIManager:scheduleIn(0.5, function()
+            self:patchFileChooser()
+        end)
+    end
 
     -- Only auto-sync from FileManager (no document), not ReaderUI
     if not self.ui.document and self.auto_sync and self:isLoggedIn() then
@@ -83,7 +90,6 @@ function CloudReader:autoSyncLibrary()
     if code ~= 200 then
         logger.dbg("CloudReader: Auto-sync failed (server unavailable)")
         UIManager:allowStandby()
-        self:scheduleNextSync()
         return
     end
 
@@ -92,7 +98,6 @@ function CloudReader:autoSyncLibrary()
     if not ok or not result or not result.books then
         logger.dbg("CloudReader: Auto-sync failed (invalid response)")
         UIManager:allowStandby()
-        self:scheduleNextSync()
         return
     end
 
@@ -538,11 +543,17 @@ function CloudReader:showSettingsMenu()
                     callback = function()
                         self.auto_sync = not self.auto_sync
                         self:saveSettings()
-                        if self.auto_sync then
-                            self:scheduleNextSync()
-                        end
                         UIManager:close(self.settings_dialog)
                         self:showSettingsMenu()
+                    end,
+                },
+            },
+            {
+                {
+                    text = _("Download current folder"),
+                    callback = function()
+                        UIManager:close(self.settings_dialog)
+                        self:downloadCurrentFolder()
                     end,
                 },
             },
@@ -878,6 +889,11 @@ function CloudReader:openLibrary()
     else
         FileManager:showFiles(self.library_dir)
     end
+    
+    -- Patch file chooser for folder hold after a short delay
+    UIManager:scheduleIn(0.5, function()
+        self:patchFileChooser()
+    end)
 end
 
 -- Placeholder
@@ -968,29 +984,19 @@ function CloudReader:isPlaceholder(file_path)
     return false, nil
 end
 
-function CloudReader:downloadBook(file_path, book_id, callback)
+function CloudReader:downloadFile(file_path, book_id)
     local book = self.book_index[book_id]
     if not book then
-        UIManager:show(InfoMessage:new{
-            text = _("Book not found in index. Try syncing library."),
-        })
-        return
+        return false, "not_found"
     end
 
     local base_url = self:getBaseUrl()
     local download_url = base_url .. "/books/" .. book_id .. "/download"
 
-    UIManager:show(InfoMessage:new{
-        text = T(_("Downloading:\n%1"), book.title),
-        timeout = 2,
-    })
-    UIManager:forceRePaint()
-
     local temp_path = file_path .. ".tmp"
     local file = io.open(temp_path, "wb")
     if not file then
-        UIManager:show(InfoMessage:new{ text = _("Cannot create file.") })
-        return
+        return false, "cannot_create"
     end
 
     local request = {
@@ -1014,20 +1020,155 @@ function CloudReader:downloadBook(file_path, book_id, callback)
 
     if not pcall_ok or headers == nil or code ~= 200 then
         os.remove(temp_path)
-        UIManager:show(InfoMessage:new{
-            text = T(_("Download failed: %1"), code or _("error")),
-        })
-        return
+        return false, code or "error"
     end
 
     os.remove(file_path)
     os.rename(temp_path, file_path)
-
     logger.info("CloudReader: Downloaded:", file_path)
+
+    return true, nil
+end
+
+function CloudReader:downloadBook(file_path, book_id, callback)
+    local book = self.book_index[book_id]
+    if not book then
+        UIManager:show(InfoMessage:new{
+            text = _("Book not found in index. Try syncing library."),
+        })
+        return
+    end
+
+    UIManager:show(InfoMessage:new{
+        text = T(_("Downloading:\n%1"), book.title),
+        timeout = 2,
+    })
+    UIManager:forceRePaint()
+
+    local ok, err = self:downloadFile(file_path, book_id)
+    
+    if not ok then
+        UIManager:show(InfoMessage:new{
+            text = T(_("Download failed: %1"), err),
+        })
+        return
+    end
 
     if callback then
         callback()
     end
+end
+
+function CloudReader:scanFolderForPlaceholders(folder_path)
+    local placeholders = {}
+    
+    local function scan_recursive(dir)
+        local attr = lfs.attributes(dir)
+        if not attr or attr.mode ~= "directory" then return end
+        
+        for file in lfs.dir(dir) do
+            if file ~= "." and file ~= ".." and not file:match("%.sdr$") then
+                local full_path = dir .. "/" .. file
+                local file_attr = lfs.attributes(full_path)
+                
+                if file_attr then
+                    if file_attr.mode == "directory" then
+                        scan_recursive(full_path)
+                    elseif file_attr.mode == "file" then
+                        local is_placeholder, book_id = self:isPlaceholder(full_path)
+                        if is_placeholder and book_id then
+                            table.insert(placeholders, {
+                                path = full_path,
+                                book_id = book_id,
+                                title = self.book_index[book_id] and self.book_index[book_id].title or file,
+                            })
+                        end
+                    end
+                end
+            end
+        end
+    end
+    
+    scan_recursive(folder_path)
+    return placeholders
+end
+
+function CloudReader:downloadFolder(folder_path)
+    if not self:isLoggedIn() then
+        UIManager:show(InfoMessage:new{ text = _("Not logged in.") })
+        return
+    end
+    
+    NetworkMgr:runWhenConnected(function()
+        UIManager:show(InfoMessage:new{
+            text = _("Scanning folder..."),
+            timeout = 1,
+        })
+        UIManager:forceRePaint()
+        
+        local placeholders = self:scanFolderForPlaceholders(folder_path)
+        
+        if #placeholders == 0 then
+            UIManager:show(InfoMessage:new{
+                text = _("No placeholders found in folder."),
+                timeout = 2,
+            })
+            return
+        end
+        
+        local total = #placeholders
+        local failed = 0
+        
+        UIManager:preventStandby()
+        
+        for i, item in ipairs(placeholders) do
+            UIManager:show(InfoMessage:new{
+                text = T(_("Downloading %1/%2:\n%3"), i, total, item.title),
+            })
+            UIManager:forceRePaint()
+            
+            local ok = self:downloadFile(item.path, item.book_id)
+            if not ok then
+                failed = failed + 1
+            end
+        end
+        
+        UIManager:allowStandby()
+        
+        local msg
+        if failed == 0 then
+            msg = T(_("Downloaded %1 books."), total)
+        else
+            msg = T(_("Downloaded %1 books.\nFailed: %2"), total - failed, failed)
+        end
+        UIManager:show(InfoMessage:new{ text = msg, timeout = 3 })
+    end)
+end
+
+function CloudReader:isInLibrary(path)
+    if not self.library_dir then return false end
+    return path:sub(1, #self.library_dir) == self.library_dir
+end
+
+function CloudReader:downloadCurrentFolder()
+    local FileManager = require("apps/filemanager/filemanager")
+    
+    if not FileManager.instance or not FileManager.instance.file_chooser then
+        UIManager:show(InfoMessage:new{ text = _("Not in file browser.") })
+        return
+    end
+    
+    local current_path = FileManager.instance.file_chooser.path
+    
+    if not self:isInLibrary(current_path) then
+        UIManager:show(InfoMessage:new{
+            text = _("Not in CloudReader library folder."),
+            timeout = 2,
+        })
+        return
+    end
+    
+    self:downloadFolder(current_path)
 end
 
 -- FileManager Hook
@@ -1063,20 +1204,92 @@ function CloudReader:patchReaderUI()
     logger.info("CloudReader: FileManager patched")
 end
 
+function CloudReader:patchFileChooser()
+    local FileManager = require("apps/filemanager/filemanager")
+    
+    if not FileManager.instance or not FileManager.instance.file_chooser then
+        return false
+    end
+    
+    local file_chooser = FileManager.instance.file_chooser
+    
+    if file_chooser._cloudreader_hold_patched then
+        return true
+    end
+    
+    local cloudreader = self
+    local original_onFileHold = file_chooser.onFileHold
+    
+    file_chooser.onFileHold = function(fc, item)
+        if not item.is_file and not item.is_go_up and cloudreader:isInLibrary(item.path) then
+            cloudreader:showFolderDownloadDialog(item.path, function()
+                original_onFileHold(fc, item)
+            end)
+            return true
+        end
+        return original_onFileHold(fc, item)
+    end
+    
+    file_chooser._cloudreader_hold_patched = true
+    logger.info("CloudReader: FileChooser hold patched")
+    return true
+end
+
+function CloudReader:showFolderDownloadDialog(folder_path, original_callback)
+    local ButtonDialog = require("ui/widget/buttondialog")
+    local ffiUtil = require("ffi/util")
+    
+    local folder_name = ffiUtil.basename(folder_path)
+    
+    local dialog
+    dialog = ButtonDialog:new{
+        title = T(_("CloudReader: %1"), folder_name),
+        buttons = {
+            {
+                {
+                    text = _("Download all books"),
+                    callback = function()
+                        UIManager:close(dialog)
+                        self:downloadFolder(folder_path)
+                    end,
+                },
+            },
+            {
+                {
+                    text = _("More options..."),
+                    callback = function()
+                        UIManager:close(dialog)
+                        if original_callback then
+                            original_callback()
+                        end
+                    end,
+                },
+            },
+            {
+                {
+                    text = _("Cancel"),
+                    callback = function()
+                        UIManager:close(dialog)
+                    end,
+                },
+            },
+        },
+    }
+    UIManager:show(dialog)
+end
+
 -- Document Events
 
 function CloudReader:onReaderReady()
-    if self.auto_sync and self:isLoggedIn() then
+    if self.auto_sync and self:isLoggedIn() and NetworkMgr:isConnected() then
         UIManager:scheduleIn(2, function()
-            NetworkMgr:runWhenConnected(function()
-                self:fetchAndApplyProgress()
-            end)
+            self:fetchAndApplyProgress()
         end)
     end
 end
 
 function CloudReader:onCloseDocument()
-    if self.auto_sync and self:isLoggedIn() and self.ui.document then
+    if self.auto_sync and self:isLoggedIn() and self.ui.document and NetworkMgr:isConnected() then
         local book_id = self:getBookId()
         if book_id then
             local progress = self:getProgressData()

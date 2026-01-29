@@ -60,13 +60,18 @@ pub fn generate_placeholder(
         book.authors.join(", ")
     };
 
-    // Subject/Description (truncate if too long)
+    // Subject/Description (truncate if too long, respecting UTF-8 boundaries)
     let subject = book
         .description
         .as_ref()
         .map(|d| {
             if d.len() > 500 {
-                format!("{}...", &d[..497])
+                // Find a valid UTF-8 boundary
+                let mut end = 497;
+                while end > 0 && !d.is_char_boundary(end) {
+                    end -= 1;
+                }
+                format!("{}...", &d[..end])
             } else {
                 d.clone()
             }
