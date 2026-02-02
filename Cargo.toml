@@ -1,6 +1,6 @@
 [package]
 name = "ebook-rs"
-version = "0.5.0"
+version = "0.6.0"
 edition = "2024"
 authors = ["liberodark"]
 description = "Lightweight OPDS server for ebooks and comics with reading sync"
@@ -13,16 +13,16 @@ categories = ["command-line-utilities", "web-programming"]
 tokio = { version = "1", features = ["full"] }
 axum = { version = "0.8", features = ["macros"] }
 tower-http = { version = "0.6", features = ["cors", "trace"] }
-clap = { version = "4", features = ["derive", "env"] }
+clap = { version = "4.5", features = ["derive", "env"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-quick-xml = { version = "0.37", features = ["serialize"] }
-toml = "0.8"
-rusqlite = { version = "0.32", features = ["bundled"] }
+quick-xml = { version = "0.39", features = ["serialize"] }
+toml = "0.9"
+rusqlite = { version = "0.38", features = ["bundled"] }
 argon2 = "0.5"
 rand = "0.8"
 base64 = "0.22"
-zip = { version = "2", default-features = false, features = ["deflate"] }
+zip = { version = "7.2", default-features = false, features = ["deflate"] }
 lopdf = "0.39"
 image = { version = "0.25", default-features = false, features = ["jpeg", "png", "webp"] }
 jxl = "0.3"
@@ -39,7 +39,7 @@ tokio-util = { version = "0.7", features = ["io"] }
 dirs = "6.0"
 flate2 = "1.1"
 tar = "0.4"
-roxmltree = "0.20"
+roxmltree = "0.21"
 rayon = "1.11"
 
 [dev-dependencies]
