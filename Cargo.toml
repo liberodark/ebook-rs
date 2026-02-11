@@ -22,7 +22,7 @@ rusqlite = { version = "0.38", features = ["bundled"] }
 argon2 = "0.5"
 rand = "0.8"
 base64 = "0.22"
-zip = { version = "7.2", default-features = false, features = ["deflate"] }
+zip = { version = "7.4", default-features = false, features = ["deflate"] }
 lopdf = "0.39"
 image = { version = "0.25", default-features = false, features = ["jpeg", "png", "webp"] }
 jxl = "0.3"
