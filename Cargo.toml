@@ -20,7 +20,7 @@ quick-xml = { version = "0.39", features = ["serialize"] }
 toml = "1.0"
 rusqlite = { version = "0.38", features = ["bundled"] }
 argon2 = "0.5"
-rand = "0.9"
+rand = "0.10"
 base64 = "0.22"
 zip = { version = "8.1", default-features = false, features = ["deflate"] }
 lopdf = "0.39"
