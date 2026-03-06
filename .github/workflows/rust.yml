@@ -141,19 +141,19 @@ jobs:
         run: |
           Compress-Archive -Path "target/${{ matrix.target }}/release/ebook-rs${{ matrix.ext }}" -DestinationPath "ebook-rs-${{ env.VERSION }}-${{ matrix.name }}.zip"
       - name: Upload binary artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: ebook-rs-${{ matrix.name }}
           path: target/${{ matrix.target }}/release/ebook-rs${{ matrix.ext }}
       - name: Upload tarball artifact
         if: startsWith(github.ref, 'refs/tags/v') && runner.os != 'Windows'
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: ebook-rs-${{ matrix.name }}-tarball
           path: ebook-rs-${{ env.VERSION }}-${{ matrix.name }}.tar.gz
       - name: Upload zip artifact
         if: startsWith(github.ref, 'refs/tags/v') && runner.os == 'Windows'
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: ebook-rs-${{ matrix.name }}-zip
           path: ebook-rs-${{ env.VERSION }}-${{ matrix.name }}.zip
