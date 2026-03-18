@@ -25,7 +25,7 @@ base64 = "0.22"
 zip = { version = "8.2", default-features = false, features = ["deflate"] }
 lopdf = "0.39"
 image = { version = "0.25", default-features = false, features = ["jpeg", "png", "webp"] }
-jxl = "0.3"
+jxl = "0.4"
 uuid = { version = "1", features = ["v4", "v5"] }
 chrono = { version = "0.4", features = ["serde"] }
 walkdir = "2"
