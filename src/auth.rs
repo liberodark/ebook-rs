@@ -2,14 +2,24 @@ use crate::db::{Database, Session, User, now_timestamp};
 use crate::error::{AppError, Result};
 use argon2::{
     Argon2,
-    password_hash::{PasswordHash, PasswordHasher, PasswordVerifier, SaltString, rand_core::OsRng},
+    password_hash::{PasswordHash, PasswordHasher, PasswordVerifier, Salt, SaltString},
 };
 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
-use rand::RngCore;
+use rand::{TryRng, rngs::SysRng};
+
+/// Fill a buffer with cryptographically secure random bytes from the OS.
+fn fill_random(buf: &mut [u8]) {
+    SysRng
+        .try_fill_bytes(buf)
+        .expect("OS RNG must be available");
+}
 
 /// Hash a password using Argon2.
 pub fn hash_password(password: &str) -> Result<String> {
-    let salt = SaltString::generate(&mut OsRng);
+    let mut salt_bytes = [0u8; Salt::RECOMMENDED_LENGTH];
+    fill_random(&mut salt_bytes);
+    let salt = SaltString::encode_b64(&salt_bytes)
+        .map_err(|e| AppError::Internal(format!("Failed to encode salt: {}", e)))?;
     let argon2 = Argon2::default();
 
     argon2
@@ -31,7 +41,7 @@ pub fn verify_password(password: &str, hash: &str) -> Result<bool> {
 /// Generate a secure random token.
 pub fn generate_token() -> String {
     let mut bytes = [0u8; 32];
-    OsRng.fill_bytes(&mut bytes);
+    fill_random(&mut bytes);
     URL_SAFE_NO_PAD.encode(bytes)
 }
 
