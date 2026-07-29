@@ -21,7 +21,7 @@ toml = "1.1"
 rusqlite = { version = "0.40", features = ["bundled"] }
 argon2 = "0.5"
 rand = "0.10"
-base64 = "0.22"
+base64 = "0.23"
 zip = { version = "8.5", default-features = false, features = ["deflate"] }
 lopdf = "0.44"
 image = { version = "0.25", default-features = false, features = ["jpeg", "png", "webp"] }
