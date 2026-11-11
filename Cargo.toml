@@ -23,7 +23,7 @@ argon2 = "0.6"
 rand = "0.10"
 base64 = "0.23"
 zip = { version = "9.1", default-features = false, features = ["deflate"] }
-lopdf = "0.46"
+lopdf = "0.47"
 image = { version = "0.25", default-features = false, features = ["jpeg", "png", "webp"] }
 jxl = "0.8"
 uuid = { version = "1", features = ["v4", "v5"] }
